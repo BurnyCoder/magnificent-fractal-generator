@@ -5,7 +5,7 @@ A beautiful interactive fractal art generator with a clean, modern web interface
 ## Features
 
 - Interactive fractal generator with real-time updates
-- Multiple fractal types (Mandelbrot, Julia sets, Burning Ship, etc.)
+- Multiple fractal types (Mandelbrot, Julia sets, Burning Ship, Tricorn, Newton)
 - Customizable color palettes and parameters
 - Ability to zoom, pan, and explore fractals in high detail
 - Save and share your creations
@@ -33,14 +33,14 @@ A beautiful interactive fractal art generator with a clean, modern web interface
 
 ### Creating Fractals
 
-1. Select a fractal type (Mandelbrot, Julia, or Burning Ship)
+1. Select a fractal type (Mandelbrot, Julia, Burning Ship, Tricorn, or Newton)
 2. Adjust parameters as desired:
    - Color scheme
    - Maximum iterations
    - Resolution
    - Complex plane coordinates
 3. Click "Generate" to create your fractal
-4. Use the zoom controls to explore interesting areas
+4. Use the zoom and pan controls to explore interesting areas
 
 ### Saving and Sharing
 
@@ -65,6 +65,8 @@ Fractals are created through iterative equations applied to each point in the co
 - **Mandelbrot Set**: z → z² + c, where c is the point's coordinates
 - **Julia Set**: z → z² + c, where c is a fixed complex parameter
 - **Burning Ship**: z → (|Re(z)| + i|Im(z)|)² + c
+- **Tricorn (Mandelbar)**: z → z̅² + c, where z̅ is the complex conjugate
+- **Newton Fractal**: z → z - f(z)/f'(z), using Newton's method to find roots of f(z)
 
 ## License
 

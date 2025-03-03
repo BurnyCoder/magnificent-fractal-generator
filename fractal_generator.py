@@ -224,6 +224,114 @@ class BurningShip(FractalGenerator):
         return iterations.T
 
 
+class Tricorn(FractalGenerator):
+    """Tricorn (Mandelbar) fractal generator."""
+    
+    def calculate(self):
+        """Calculate the Tricorn fractal."""
+        # Create a grid of complex numbers
+        x = np.linspace(self.x_min, self.x_max, self.width)
+        y = np.linspace(self.y_min, self.y_max, self.height)
+        c = x[:, np.newaxis] + 1j * y[np.newaxis, :]
+        
+        # Initialize array for iterations
+        iterations = np.zeros((self.width, self.height), dtype=np.float32)
+        
+        # Initialize z
+        z = np.zeros_like(c, dtype=np.complex64)
+        
+        # Create a mask for points that are still being computed
+        mask = np.ones_like(iterations, dtype=bool)
+        
+        # Iteration counter
+        iter_count = 0
+        
+        # Iterate the Tricorn function z = z̄^2 + c (where z̄ is the complex conjugate of z)
+        while iter_count < self.max_iter and np.any(mask):
+            # Check for timeout on regular intervals
+            if iter_count % self.check_frequency == 0:
+                self.check_timeout()
+                
+            # Calculate the complex conjugate of z
+            z_conj = np.conjugate(z)
+            
+            # Square conjugate and add c
+            z[mask] = z_conj[mask] * z_conj[mask] + c[mask]
+            
+            # Points that escape
+            diverged = np.abs(z) > 2.0
+            
+            # Update the mask for next iteration
+            updated_mask = diverged & mask
+            
+            # Record the iteration count for points that escape in this iteration
+            iterations[updated_mask] = iter_count + 1 - np.log(np.log(np.abs(z[updated_mask]))) / np.log(2)
+            
+            # Update the mask for next iteration
+            mask[diverged] = False
+            
+            iter_count += 1
+        
+        # Transpose to match the image coordinates
+        return iterations.T
+
+
+class Newton(FractalGenerator):
+    """Newton fractal generator."""
+    
+    def __init__(self, width, height, x_min, x_max, y_min, y_max, max_iter, color_scheme):
+        super().__init__(width, height, x_min, x_max, y_min, y_max, max_iter, color_scheme)
+        # Roots of z^3 - 1 = 0
+        self.roots = np.array([1, -0.5 + 0.866j, -0.5 - 0.866j], dtype=np.complex64)
+        
+    def calculate(self):
+        """Calculate the Newton fractal for z^3 - 1 = 0."""
+        # Create a grid of complex numbers
+        x = np.linspace(self.x_min, self.x_max, self.width)
+        y = np.linspace(self.y_min, self.y_max, self.height)
+        z = x[:, np.newaxis] + 1j * y[np.newaxis, :]
+        
+        # Initialize array for iterations and root index
+        iterations = np.zeros((self.width, self.height), dtype=np.float32)
+        root_index = np.zeros_like(iterations, dtype=np.int8)
+        
+        # Create a mask for points that are still being computed
+        mask = np.ones_like(iterations, dtype=bool)
+        
+        # Iteration counter
+        iter_count = 0
+        
+        # Newton's method for finding roots of f(z) = z^3 - 1
+        # z_{n+1} = z_n - f(z_n)/f'(z_n) = z_n - (z_n^3 - 1)/(3*z_n^2) = (2*z_n^3 + 1)/(3*z_n^2)
+        while iter_count < self.max_iter and np.any(mask):
+            # Check for timeout on regular intervals
+            if iter_count % self.check_frequency == 0:
+                self.check_timeout()
+                
+            # Newton's method formula for z^3 - 1
+            z_squared = z * z
+            z_cubed = z_squared * z
+            z[mask] = (2 * z_cubed[mask] + 1) / (3 * z_squared[mask])
+            
+            # Check if we're close to any root
+            for i, root in enumerate(self.roots):
+                close_to_root = np.abs(z - root) < 1e-6
+                # Record which root we're close to
+                root_index[close_to_root & mask] = i + 1
+                # Record the iteration count
+                iterations[close_to_root & mask] = iter_count + 1
+                # Update the mask
+                mask[close_to_root] = False
+                
+            iter_count += 1
+            
+        # Create a more interesting visualization by combining root index and iteration count
+        result = root_index.astype(np.float32) + iterations / (self.max_iter * 3)
+        
+        # Transpose to match the image coordinates
+        return result.T
+
+
 def generate_fractal_image(fractal_type, width, height, x_min, x_max, y_min, y_max, 
                           max_iter, color_scheme, c_real=None, c_imag=None):
     """
@@ -252,6 +360,10 @@ def generate_fractal_image(fractal_type, width, height, x_min, x_max, y_min, y_m
         generator = JuliaSet(width, height, x_min, x_max, y_min, y_max, max_iter, color_scheme, c_real, c_imag)
     elif fractal_type == 'burning_ship':
         generator = BurningShip(width, height, x_min, x_max, y_min, y_max, max_iter, color_scheme)
+    elif fractal_type == 'tricorn':
+        generator = Tricorn(width, height, x_min, x_max, y_min, y_max, max_iter, color_scheme)
+    elif fractal_type == 'newton':
+        generator = Newton(width, height, x_min, x_max, y_min, y_max, max_iter, color_scheme)
     else:
         raise ValueError(f"Unsupported fractal type: {fractal_type}")
     
