@@ -805,9 +805,9 @@
             // Calculate how much to shift (20% of current height)
             const yShift = (yMax - yMin) * 0.2;
             
-            // Update coordinates to shift up
-            const newYMin = yMin + yShift;
-            const newYMax = yMax + yShift;
+            // Update coordinates to shift up (decrease y-values to move up in the fractal plane)
+            const newYMin = yMin - yShift;
+            const newYMax = yMax - yShift;
             
             // Update the form values
             document.getElementById('y-min').value = newYMin.toFixed(5);
@@ -832,9 +832,9 @@
             // Calculate how much to shift (20% of current height)
             const yShift = (yMax - yMin) * 0.2;
             
-            // Update coordinates to shift down
-            const newYMin = yMin - yShift;
-            const newYMax = yMax - yShift;
+            // Update coordinates to shift down (increase y-values to move down in the fractal plane)
+            const newYMin = yMin + yShift;
+            const newYMax = yMax + yShift;
             
             // Update the form values
             document.getElementById('y-min').value = newYMin.toFixed(5);
