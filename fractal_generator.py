@@ -276,6 +276,122 @@ class Tricorn(FractalGenerator):
         return iterations.T
 
 
+class MultibrotSet(FractalGenerator):
+    """Multibrot Set fractal generator with adjustable power."""
+    
+    def __init__(self, width, height, x_min, x_max, y_min, y_max, max_iter, color_scheme, power=3):
+        super().__init__(width, height, x_min, x_max, y_min, y_max, max_iter, color_scheme)
+        self.power = power  # Default to cubic (power=3)
+    
+    def calculate(self):
+        """Calculate the Multibrot set with specified power."""
+        # Create a grid of complex numbers
+        x = np.linspace(self.x_min, self.x_max, self.width)
+        y = np.linspace(self.y_min, self.y_max, self.height)
+        c = x[:, np.newaxis] + 1j * y[np.newaxis, :]
+        
+        # Initialize array for iterations
+        iterations = np.zeros((self.width, self.height), dtype=np.float32)
+        
+        # Initialize z
+        z = np.zeros_like(c, dtype=np.complex64)
+        
+        # Create a mask for points that are still being computed
+        mask = np.ones_like(iterations, dtype=bool)
+        
+        # Iteration counter
+        iter_count = 0
+        
+        # Multibrot escape radius depends on the power
+        escape_radius = max(2.0, pow(2.0, 1.0/(self.power-1)))
+        
+        # Iterate the Multibrot function z = z^power + c
+        while iter_count < self.max_iter and np.any(mask):
+            # Check for timeout on regular intervals
+            if iter_count % self.check_frequency == 0:
+                self.check_timeout()
+                
+            # Calculate z^power + c
+            z[mask] = np.power(z[mask], self.power) + c[mask]
+            
+            # Points that escape
+            diverged = np.abs(z) > escape_radius
+            
+            # Update the mask for next iteration
+            updated_mask = diverged & mask
+            
+            # Record the iteration count for points that escape in this iteration
+            iterations[updated_mask] = iter_count + 1 - np.log(np.log(np.abs(z[updated_mask]))) / np.log(self.power)
+            
+            # Update the mask for next iteration
+            mask[diverged] = False
+            
+            iter_count += 1
+        
+        # Transpose to match the image coordinates
+        return iterations.T
+
+
+class Phoenix(FractalGenerator):
+    """Phoenix fractal generator."""
+    
+    def __init__(self, width, height, x_min, x_max, y_min, y_max, max_iter, color_scheme, p_real=-0.5, p_imag=0.0):
+        super().__init__(width, height, x_min, x_max, y_min, y_max, max_iter, color_scheme)
+        self.p = complex(p_real, p_imag)  # Default parameter
+    
+    def calculate(self):
+        """Calculate the Phoenix fractal."""
+        # Create a grid of complex numbers
+        x = np.linspace(self.x_min, self.x_max, self.width)
+        y = np.linspace(self.y_min, self.y_max, self.height)
+        c = x[:, np.newaxis] + 1j * y[np.newaxis, :]
+        
+        # Initialize arrays for current and previous values
+        z = np.zeros_like(c, dtype=np.complex64)
+        z_old = np.zeros_like(c, dtype=np.complex64)
+        
+        # Initialize array for iterations
+        iterations = np.zeros((self.width, self.height), dtype=np.float32)
+        
+        # Create a mask for points that are still being computed
+        mask = np.ones_like(iterations, dtype=bool)
+        
+        # Iteration counter
+        iter_count = 0
+        
+        # Iterate the Phoenix function z_{n+1} = z_n^2 + c + p*z_{n-1}
+        while iter_count < self.max_iter and np.any(mask):
+            # Check for timeout on regular intervals
+            if iter_count % self.check_frequency == 0:
+                self.check_timeout()
+                
+            # Save temp for swapping
+            z_temp = z.copy()
+            
+            # Phoenix formula
+            z[mask] = z[mask] * z[mask] + c[mask] + self.p * z_old[mask]
+            
+            # Update old z value for next iteration
+            z_old[mask] = z_temp[mask]
+            
+            # Points that escape
+            diverged = np.abs(z) > 2.0
+            
+            # Update the mask for next iteration
+            updated_mask = diverged & mask
+            
+            # Record the iteration count for points that escape in this iteration
+            iterations[updated_mask] = iter_count + 1 - np.log(np.log(np.abs(z[updated_mask]))) / np.log(2)
+            
+            # Update the mask for next iteration
+            mask[diverged] = False
+            
+            iter_count += 1
+        
+        # Transpose to match the image coordinates
+        return iterations.T
+
+
 class Newton(FractalGenerator):
     """Newton fractal generator."""
     
@@ -338,7 +454,7 @@ def generate_fractal_image(fractal_type, width, height, x_min, x_max, y_min, y_m
     Generate a fractal image based on the specified parameters.
     
     Args:
-        fractal_type: Type of fractal ('mandelbrot', 'julia', 'burning_ship')
+        fractal_type: Type of fractal ('mandelbrot', 'julia', 'burning_ship', etc.)
         width: Image width in pixels
         height: Image height in pixels
         x_min, x_max, y_min, y_max: Coordinates in the complex plane
@@ -364,6 +480,15 @@ def generate_fractal_image(fractal_type, width, height, x_min, x_max, y_min, y_m
         generator = Tricorn(width, height, x_min, x_max, y_min, y_max, max_iter, color_scheme)
     elif fractal_type == 'newton':
         generator = Newton(width, height, x_min, x_max, y_min, y_max, max_iter, color_scheme)
+    elif fractal_type == 'multibrot':
+        # Default to cubic Multibrot
+        power = float(c_real) if c_real is not None else 3
+        generator = MultibrotSet(width, height, x_min, x_max, y_min, y_max, max_iter, color_scheme, power=power)
+    elif fractal_type == 'phoenix':
+        # Default values for Phoenix parameters
+        p_real = c_real if c_real is not None else -0.5
+        p_imag = c_imag if c_imag is not None else 0.0
+        generator = Phoenix(width, height, x_min, x_max, y_min, y_max, max_iter, color_scheme, p_real, p_imag)
     else:
         raise ValueError(f"Unsupported fractal type: {fractal_type}")
     
