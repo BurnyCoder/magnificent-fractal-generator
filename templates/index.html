@@ -379,8 +379,14 @@
         document.getElementById('btn-pan-up').addEventListener('click', panUp);
         document.getElementById('btn-pan-down').addEventListener('click', panDown);
         
-        // Show ready message instead of auto-generating
+        // Show ready message
         console.log('Fractal generator ready - click Generate to create a fractal');
+        
+        // Automatically generate fractal with default settings
+        console.log('Auto-generating default fractal...');
+        setTimeout(() => {
+            generateFractal();
+        }, 500); // Small delay to ensure UI is fully loaded
     });
     
     // Initialize the noUiSlider

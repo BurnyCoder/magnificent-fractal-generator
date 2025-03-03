@@ -93,7 +93,7 @@ def generate():
         app.logger.info(f"Complexity score: {complexity}")
         
         # Set a reasonable limit for complexity to prevent server overload
-        if complexity > 50000000:  # 50 million operations is a good threshold
+        if complexity > 5000000000:  # 50 million operations is a good threshold
             app.logger.warning(f"Rejecting request due to high complexity: {complexity}")
             return jsonify({
                 'error': 'Parameters too complex',
