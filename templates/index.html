@@ -128,6 +128,7 @@
                             <option value="phoenix">Phoenix Fractal</option>
                             <option value="sierpinski_carpet">Sierpinski Carpet</option>
                             <option value="lyapunov">Lyapunov Fractal</option>
+                            <option value="buddhabrot">Buddhabrot</option>
                         </select>
                     </div>
                     
@@ -196,6 +197,16 @@
                             <span class="input-group-text">Sequence</span>
                             <input type="text" id="lyapunov-sequence" class="form-control" value="AB" pattern="[AB]+" aria-label="Sequence for Lyapunov Fractal">
                             <div class="form-text mt-1">Use only A and B characters. Try different patterns like "AB", "AAB", "AABB", etc.</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Buddhabrot Parameters -->
+                    <div id="buddhabrot-params" class="mb-3 d-none">
+                        <label for="buddhabrot-samples" class="form-label">Buddhabrot Parameters</label>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text">Samples</span>
+                            <input type="number" id="buddhabrot-samples" class="form-control" value="1000000" min="10000" max="5000000" step="10000" aria-label="Number of samples for Buddhabrot">
+                            <div class="form-text mt-1">Number of random samples to use (higher values produce better quality but take longer to render).</div>
                         </div>
                     </div>
                     
@@ -300,6 +311,7 @@
                 <p><strong>Phoenix Fractal:</strong> Uses a recurrence relation with the previous iterate: z_{n+1} = z_n^2 + c + p*z_{n-1}. Produces flame-like patterns.</p>
                 <p><strong>Sierpinski Carpet:</strong> A classic self-similar pattern created by recursively removing the middle third of squares. One of the earliest examples of a mathematically described fractal.</p>
                 <p><strong>Lyapunov Fractal:</strong> Based on chaos theory and dynamical systems, these fractals visualize the stability of the logistic map under different parameter sequences (A and B). The colors represent the Lyapunov exponent values.</p>
+                <p><strong>Buddhabrot:</strong> A special rendering method of the Mandelbrot set that plots the trajectories of points that escape, rather than the points themselves. Named for its resemblance to Buddha in meditation pose, it reveals stunning hidden structures within the Mandelbrot set.</p>
             </div>
         </div>
     </div>
@@ -405,6 +417,13 @@
             y_min: 2.0,
             y_max: 4.0,
             sequence: "AB"
+        },
+        buddhabrot: {
+            x_min: -2.5,
+            x_max: 1.5,
+            y_min: -1.5,
+            y_max: 1.5,
+            samples: 1000000
         }
     };
     
@@ -428,6 +447,7 @@
             document.getElementById('phoenix-params').classList.add('d-none');
             document.getElementById('sierpinski-params').classList.add('d-none');
             document.getElementById('lyapunov-params').classList.add('d-none');
+            document.getElementById('buddhabrot-params').classList.add('d-none');
             
             // Show the appropriate parameter group
             if (type === 'julia') {
@@ -440,6 +460,8 @@
                 document.getElementById('sierpinski-params').classList.remove('d-none');
             } else if (type === 'lyapunov') {
                 document.getElementById('lyapunov-params').classList.remove('d-none');
+            } else if (type === 'buddhabrot') {
+                document.getElementById('buddhabrot-params').classList.remove('d-none');
             }
             
             // Set default parameters for the selected fractal type
@@ -609,6 +631,11 @@
         // Add Lyapunov Fractal specific parameters if needed
         if (type === 'lyapunov') {
             params.c_real = document.getElementById('lyapunov-sequence').value || 'AB';
+        }
+        
+        // Add Buddhabrot specific parameters if needed
+        if (type === 'buddhabrot') {
+            params.c_real = parseInt(document.getElementById('buddhabrot-samples').value) || 1000000;
         }
         
         return params;

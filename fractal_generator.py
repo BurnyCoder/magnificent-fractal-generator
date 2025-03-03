@@ -32,11 +32,16 @@ class FractalGenerator(ABC):
         pass
     
     def check_timeout(self):
-        """Check if calculation has exceeded the timeout"""
+        """Check if calculation has exceeded the timeout
+        
+        Returns:
+            bool: True if timeout has occurred, False otherwise
+        """
         elapsed = time.time() - self.start_time
         if elapsed > self.timeout:
             print(f"Fractal calculation timed out after {elapsed:.2f} seconds")
-            raise TimeoutError(f"Fractal calculation exceeded time limit of {self.timeout} seconds (elapsed: {elapsed:.2f}s)")
+            return True
+        return False
     
     def generate_image(self):
         """Generate a PIL image from the fractal data."""
@@ -51,6 +56,11 @@ class FractalGenerator(ABC):
             elapsed = time.time() - start
             print(f"Fractal calculation failed after {elapsed:.2f} seconds: {str(e)}")
             raise
+        
+        # If calculation timed out and no data was returned, raise a TimeoutError
+        if self.check_timeout() and data is None:
+            elapsed = time.time() - start
+            raise TimeoutError(f"Fractal calculation exceeded time limit of {self.timeout} seconds (elapsed: {elapsed:.2f}s)")
         
         print("Applying color mapping...")
         # Normalize the data for visualization (between 0 and 1)
@@ -571,6 +581,97 @@ class LyapunovFractal(FractalGenerator):
         return result.T
 
 
+class Buddhabrot(FractalGenerator):
+    """
+    Implementation of the Buddhabrot fractal, which is a rendering method for the Mandelbrot set
+    that shows the density of escape trajectories.
+    """
+    def __init__(self, width, height, x_min, x_max, y_min, y_max, max_iter, color_scheme, samples=1000000):
+        super().__init__(width, height, x_min, x_max, y_min, y_max, max_iter, color_scheme)
+        # Number of random samples to use - adjust based on image size and timeout
+        # For web UI, we need to be more conservative to avoid timeouts
+        max_safe_samples = 100000 + (width * height) // 10  # Scale with image size
+        self.samples = min(samples, max_safe_samples)
+    
+    def calculate(self):
+        """Calculate the Buddhabrot fractal."""
+        # Initialize histogram to count trajectory visits
+        histogram = np.zeros((self.width, self.height), dtype=np.uint32)
+        
+        # Scale to convert from complex plane to pixel coordinates
+        x_scale = self.width / (self.x_max - self.x_min)
+        y_scale = self.height / (self.y_max - self.y_min)
+        
+        # Random sampling approach
+        np.random.seed(42)  # For reproducibility
+        
+        # Counter for tracking progress
+        processed = 0
+        min_samples = 10000  # Minimum samples to process before we can return a partial result
+        
+        # Generate random complex points and track their trajectories
+        for i in range(self.samples):
+            # Check for timeout every 1000 samples to avoid slowing calculation
+            if i % 1000 == 0 and self.check_timeout():
+                # If we've processed enough samples, we can return a partial result
+                if processed >= min_samples:
+                    print(f"Buddhabrot calculation timed out but returning partial result with {processed} samples")
+                    break
+                else:
+                    # Not enough samples, let generate_image handle the timeout
+                    return None
+                
+            # Generate random point in complex plane
+            c_real = np.random.uniform(self.x_min, self.x_max)
+            c_imag = np.random.uniform(self.y_min, self.y_max)
+            c = complex(c_real, c_imag)
+            
+            # Skip points that are in the main cardioid or period-2 bulb (optimization)
+            # p = (c_real - 0.25)**2 + c_imag**2
+            # if c_real <= p - 2 * p**2 + 0.25 or (c_real + 1)**2 + c_imag**2 <= 0.0625:
+            #    continue
+            
+            # Track the trajectory
+            z = complex(0, 0)
+            trajectory = []
+            escaped = False
+            
+            for j in range(self.max_iter):
+                trajectory.append(z)
+                z = z*z + c
+                
+                if abs(z) > 2.0:
+                    escaped = True
+                    break
+            
+            # Only count trajectories that escape
+            if escaped:
+                for point in trajectory:
+                    x = int((point.real - self.x_min) * x_scale)
+                    y = int((point.imag - self.y_min) * y_scale)
+                    
+                    # Check if point is within image bounds
+                    if 0 <= x < self.width and 0 <= y < self.height:
+                        histogram[x, y] += 1
+            
+            processed += 1
+        
+        # Normalize and scale the histogram for better visualization
+        nonzero = histogram > 0
+        if np.any(nonzero):
+            # Apply log scaling to enhance detail
+            result = np.zeros_like(histogram, dtype=float)
+            result[nonzero] = np.log(histogram[nonzero])
+            
+            # Normalize to 0-1 range
+            if np.max(result) > 0:
+                result = result / np.max(result)
+            
+            return result
+        else:
+            return np.zeros((self.width, self.height), dtype=float)
+
+
 def generate_fractal_image(fractal_type, width, height, x_min, x_max, y_min, y_max, 
                           max_iter, color_scheme, c_real=None, c_imag=None):
     """
@@ -620,6 +721,10 @@ def generate_fractal_image(fractal_type, width, height, x_min, x_max, y_min, y_m
         # Default sequence for Lyapunov fractal
         sequence = c_real if isinstance(c_real, str) else "AB"
         generator = LyapunovFractal(width, height, x_min, x_max, y_min, y_max, max_iter, color_scheme, sequence=sequence)
+    elif fractal_type == 'buddhabrot':
+        # Use c_real as the number of samples
+        samples = int(c_real) if c_real is not None else 1000000
+        generator = Buddhabrot(width, height, x_min, x_max, y_min, y_max, max_iter, color_scheme, samples=samples)
     else:
         raise ValueError(f"Unsupported fractal type: {fractal_type}")
     

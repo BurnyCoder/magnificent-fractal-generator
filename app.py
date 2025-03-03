@@ -101,6 +101,10 @@ def generate():
                 # For Phoenix, c_real and c_imag are p_real and p_imag
                 c_real = float(data.get('c_real', -0.5))
                 c_imag = float(data.get('c_imag', 0.0))
+            elif fractal_type == 'buddhabrot':
+                # For Buddhabrot, use c_real for samples if provided
+                c_real = int(data.get('c_real', 1000000)) if data.get('c_real') else 1000000
+                c_imag = 0  # Not used for Buddhabrot
             else:
                 # For other fractals (Mandelbrot, Julia, etc.), handle normally
                 c_real = float(data.get('c_real', -0.7))
@@ -143,11 +147,24 @@ def generate():
                 c_imag=c_imag
             )
             app.logger.info("Fractal calculation completed successfully")
+            fallback = False
+        except TimeoutError as timeout_err:
+            app.logger.error(f"Fractal calculation timed out: {str(timeout_err)}")
+            # Special message for Buddhabrot since it's particularly computation intensive
+            fallback_message = "Fractal generation timed out."
+            if fractal_type == 'buddhabrot':
+                fallback_message = "Buddhabrot calculation timed out. Try reducing samples or image size. This fractal type is very computation intensive."
+            
+            # Generate fallback image with the specific message
+            app.logger.info("Generating fallback image")
+            img_data = create_fallback_image(width, height, color_scheme, message=fallback_message)
+            fallback = True
         except Exception as calc_error:
             app.logger.error(f"Fractal calculation failed: {str(calc_error)}")
-            # If calculation fails, generate a simple gradient as fallback
+            # If calculation fails for other reasons, generate a simple gradient as fallback
             app.logger.info("Generating fallback image")
             img_data = create_fallback_image(width, height, color_scheme)
+            fallback = True
             
         # Convert to base64 for sending to frontend
         buffer = io.BytesIO()
@@ -158,7 +175,7 @@ def generate():
         return jsonify({
             'image': f'data:image/png;base64,{img_str}',
             'parameters': data,
-            'fallback': img_data is None
+            'fallback': fallback
         })
     except Exception as e:
         app.logger.error(f"Error in generate route: {str(e)}")
@@ -168,7 +185,7 @@ def generate():
         }), 500
 
 
-def create_fallback_image(width, height, color_scheme='viridis'):
+def create_fallback_image(width, height, color_scheme='viridis', message="Fractal generation failed. Try simpler parameters."):
     """Create a simple gradient fallback image when fractal generation fails"""
     # Create a simple gradient as a fallback
     x = np.linspace(0, 1, width)
@@ -195,7 +212,6 @@ def create_fallback_image(width, height, color_scheme='viridis'):
         font = ImageFont.load_default()
     
     # Add text explaining the fallback
-    message = "Fractal generation failed. Try simpler parameters."
     text_width = draw.textlength(message, font=font)
     position = ((width - text_width) // 2, height // 2)
     
