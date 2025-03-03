@@ -1,0 +1,257 @@
+{% extends "base.html" %}
+
+{% block title %}Profile - Magnificent Fractal Art Generator{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-lg-8">
+            <h1 class="display-5">My Profile</h1>
+            <p class="text-muted">Manage your account and view your fractal creations.</p>
+        </div>
+        <div class="col-lg-4 text-lg-end align-self-center">
+            <a href="{{ url_for('index') }}" class="btn btn-primary">
+                <i class="bi bi-plus-circle me-1"></i> Create New Fractal
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-4 mb-4">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">Account Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="text-center mb-4">
+                        <div class="avatar-placeholder bg-light rounded-circle d-inline-flex justify-content-center align-items-center mb-3"
+                            style="width: 100px; height: 100px;">
+                            <i class="bi bi-person-fill text-primary" style="font-size: 3rem;"></i>
+                        </div>
+                        <h4>{{ current_user.username }}</h4>
+                        <p class="text-muted">{{ current_user.email }}</p>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Member Since</label>
+                        <p>{{ current_user.created_at.strftime('%B %d, %Y') }}</p>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Fractal Creations</label>
+                        <p>{{ fractals|length }}</p>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <div class="d-grid">
+                        <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editProfileModal">
+                            <i class="bi bi-pencil-square me-1"></i> Edit Profile
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-8">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">My Fractal Creations</h5>
+                </div>
+                <div class="card-body">
+                    {% if fractals %}
+                        <div class="fractal-gallery">
+                            {% for fractal in fractals %}
+                                <div class="fractal-card shadow">
+                                    <img src="{{ url_for('static', filename=fractal.image_path.replace('static/', '')) }}" alt="{{ fractal.title }}">
+                                    <div class="fractal-card-body">
+                                        <h5 class="fractal-title">{{ fractal.title }}</h5>
+                                        <p class="text-muted small mb-2">
+                                            <i class="bi bi-calendar3 me-1"></i> {{ fractal.created_at.strftime('%Y-%m-%d') }}
+                                            <span class="ms-2 {% if fractal.public %}text-success{% else %}text-secondary{% endif %}">
+                                                <i class="bi {% if fractal.public %}bi-globe2{% else %}bi-lock{% endif %} me-1"></i>
+                                                {{ 'Public' if fractal.public else 'Private' }}
+                                            </span>
+                                        </p>
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <span class="badge bg-primary">{{ fractal.fractal_type }}</span>
+                                            <div class="btn-group">
+                                                <a href="#" class="btn btn-sm btn-outline-secondary" onclick="downloadFractal('{{ url_for('static', filename=fractal.image_path.replace('static/', '')) }}', '{{ fractal.title }}')">
+                                                    <i class="bi bi-download"></i>
+                                                </a>
+                                                <a href="#" class="btn btn-sm btn-outline-danger" onclick="deleteFractal({{ fractal.id }})">
+                                                    <i class="bi bi-trash"></i>
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="bi bi-image display-1 text-muted"></i>
+                            <h3 class="mt-3">No fractals yet</h3>
+                            <p class="text-muted">You haven't created any fractals yet.</p>
+                            <a href="{{ url_for('index') }}" class="btn btn-primary mt-2">Create Your First Fractal</a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Profile Modal -->
+<div class="modal fade" id="editProfileModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Profile</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="edit-profile-form">
+                    <div class="mb-3">
+                        <label for="edit-email" class="form-label">Email Address</label>
+                        <input type="email" class="form-control" id="edit-email" value="{{ current_user.email }}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit-password" class="form-label">New Password</label>
+                        <input type="password" class="form-control" id="edit-password" placeholder="Leave blank to keep current password">
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit-confirm-password" class="form-label">Confirm New Password</label>
+                        <input type="password" class="form-control" id="edit-confirm-password" placeholder="Leave blank to keep current password">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="btn-update-profile">Save Changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirm Deletion</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete this fractal? This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="btn-delete-confirm">Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let deleteModal;
+    let editProfileModal;
+    let fractalToDelete;
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize modals
+        deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+        editProfileModal = new bootstrap.Modal(document.getElementById('editProfileModal'));
+        
+        // Delete confirmation
+        document.getElementById('btn-delete-confirm').addEventListener('click', function() {
+            if (fractalToDelete) {
+                fetch(`/fractal/${fractalToDelete}/delete`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        deleteModal.hide();
+                        window.location.reload();
+                    } else {
+                        alert('Error deleting fractal');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error deleting fractal');
+                });
+            }
+        });
+        
+        // Update profile
+        document.getElementById('btn-update-profile').addEventListener('click', function() {
+            const email = document.getElementById('edit-email').value;
+            const password = document.getElementById('edit-password').value;
+            const confirmPassword = document.getElementById('edit-confirm-password').value;
+            
+            // Simple validation
+            if (!email) {
+                alert('Email is required');
+                return;
+            }
+            
+            if (password && password !== confirmPassword) {
+                alert('Passwords do not match');
+                return;
+            }
+            
+            // Prepare update data
+            const updateData = {
+                email: email
+            };
+            
+            if (password) {
+                updateData.password = password;
+            }
+            
+            // Send update request
+            fetch('/profile/update', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(updateData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    editProfileModal.hide();
+                    alert('Profile updated successfully');
+                    window.location.reload();
+                } else {
+                    alert(data.message || 'Error updating profile');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error updating profile');
+            });
+        });
+    });
+    
+    function deleteFractal(id) {
+        fractalToDelete = id;
+        deleteModal.show();
+    }
+    
+    function downloadFractal(url, title) {
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${title.replace(/[^a-zA-Z0-9]/g, '_')}.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+</script>
+{% endblock %} 

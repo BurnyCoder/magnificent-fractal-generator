@@ -1,0 +1,845 @@
+{% extends "base.html" %}
+
+{% block title %}Create Fractal Art - Magnificent Fractal Art Generator{% endblock %}
+
+{% block additional_head %}
+<!-- Use unpkg CDN without integrity check since the hash is incorrect -->
+<link rel="stylesheet" href="https://unpkg.com/nouislider@15.5.0/dist/nouislider.min.css" crossorigin="anonymous">
+<!-- Fallback styling for the slider in case noUiSlider fails to load -->
+<style>
+    /* All @import rules must be at the top, before any other styles */
+    @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap');
+    
+    /* Basic styling for the slider container when noUiSlider isn't available */
+    #max-iterations-slider {
+        height: 10px;
+        background: #e0e0e0;
+        border-radius: 5px;
+        margin: 15px 0;
+    }
+    
+    /* Additional spacing for the iterations input */
+    #max-iterations {
+        margin-top: 10px;
+    }
+    
+    /* Fix for form labels - ensure they're properly associated with inputs */
+    .form-label[for] {
+        cursor: pointer;
+    }
+    
+    /* Fallback styling for noUiSlider */
+    .noUi-connect {
+        background: #3498db;
+    }
+    
+    .noUi-handle {
+        height: 18px;
+        width: 18px;
+        top: -5px;
+        right: -9px;
+        border-radius: 9px;
+    }
+    
+    .noUi-handle:after, 
+    .noUi-handle:before {
+        display: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card shadow mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="card-title mb-0">Fractal Canvas</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="fractal-container position-relative">
+                    <img id="fractal-image" class="img-fluid w-100" src="{{ url_for('static', filename='img/placeholder.png') }}" alt="Fractal Image">
+                    <div id="fractal-controls" class="position-absolute top-0 end-0 p-2">
+                        <div class="btn-group">
+                            <button id="btn-zoom-in" class="btn btn-sm btn-light" title="Zoom In">
+                                <i class="bi bi-zoom-in"></i>
+                            </button>
+                            <button id="btn-zoom-out" class="btn btn-sm btn-light" title="Zoom Out">
+                                <i class="bi bi-zoom-out"></i>
+                            </button>
+                            <button id="btn-reset" class="btn btn-sm btn-light" title="Reset View">
+                                <i class="bi bi-arrow-counterclockwise"></i>
+                            </button>
+                        </div>
+                        <div class="btn-group mt-2">
+                            <button id="btn-pan-up" class="btn btn-sm btn-light" title="Pan Up">
+                                <i class="bi bi-arrow-up"></i>
+                            </button>
+                        </div>
+                        <div class="btn-group mt-1">
+                            <button id="btn-pan-left" class="btn btn-sm btn-light" title="Pan Left">
+                                <i class="bi bi-arrow-left"></i>
+                            </button>
+                            <button id="btn-pan-right" class="btn btn-sm btn-light" title="Pan Right">
+                                <i class="bi bi-arrow-right"></i>
+                            </button>
+                        </div>
+                        <div class="btn-group mt-1">
+                            <button id="btn-pan-down" class="btn btn-sm btn-light" title="Pan Down">
+                                <i class="bi bi-arrow-down"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer">
+                <div class="d-flex justify-content-between align-items-center">
+                    <button id="btn-generate" class="btn btn-primary">
+                        <i class="bi bi-brush me-1"></i> Generate
+                    </button>
+                    <div>
+                        <button id="btn-save" class="btn btn-success" {% if not current_user.is_authenticated %}disabled title="Login to save"{% endif %}>
+                            <i class="bi bi-save me-1"></i> Save
+                        </button>
+                        <button id="btn-download" class="btn btn-info text-white">
+                            <i class="bi bi-download me-1"></i> Download
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card shadow mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="card-title mb-0">Fractal Settings</h5>
+            </div>
+            <div class="card-body">
+                <form id="fractal-form">
+                    <div class="mb-3">
+                        <label for="fractal-type" class="form-label">Fractal Type</label>
+                        <select id="fractal-type" class="form-select">
+                            <option value="mandelbrot">Mandelbrot Set</option>
+                            <option value="julia">Julia Set</option>
+                            <option value="burning_ship">Burning Ship</option>
+                        </select>
+                    </div>
+                    
+                    <div id="julia-params" class="mb-3 d-none">
+                        <label for="julia-params-group" class="form-label">Julia Set Parameters</label>
+                        <div id="julia-params-group" class="row g-2">
+                            <div class="col-6">
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text">Real</span>
+                                    <input type="number" id="c-real" class="form-control" value="-0.7" step="0.01" aria-label="Real part of complex parameter">
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text">Imag</span>
+                                    <input type="number" id="c-imag" class="form-control" value="0.27015" step="0.01" aria-label="Imaginary part of complex parameter">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="color-scheme" class="form-label">Color Scheme</label>
+                        <select id="color-scheme" class="form-select">
+                            <option value="viridis">Viridis</option>
+                            <option value="plasma">Plasma</option>
+                            <option value="inferno">Inferno</option>
+                            <option value="magma">Magma</option>
+                            <option value="cividis">Cividis</option>
+                            <option value="twilight">Twilight</option>
+                            <option value="twilight_shifted">Twilight Shifted</option>
+                            <option value="turbo">Turbo</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="max-iterations" class="form-label">Maximum Iterations</label>
+                        <div id="max-iterations-slider"></div>
+                        <input type="number" id="max-iterations" class="form-control form-control-sm mt-2" value="100" min="10" max="1000">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="resolution-container" class="form-label">Resolution</label>
+                        <div id="resolution-container" class="row g-2">
+                            <div class="col-6">
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text">Width</span>
+                                    <input type="number" id="width" class="form-control" value="800" min="100" max="2000">
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text">Height</span>
+                                    <input type="number" id="height" class="form-control" value="600" min="100" max="2000">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="advancedSettings" class="form-label">Advanced Settings</label>
+                        <div class="accordion" id="advancedSettings">
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="headingCoordinates">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseCoordinates">
+                                        Complex Plane Coordinates
+                                    </button>
+                                </h2>
+                                <div id="collapseCoordinates" class="accordion-collapse collapse" data-bs-parent="#advancedSettings">
+                                    <div class="accordion-body">
+                                        <div class="row g-2 mb-2">
+                                            <div class="col-6">
+                                                <div class="input-group input-group-sm">
+                                                    <span class="input-group-text">X Min</span>
+                                                    <input type="number" id="x-min" class="form-control" value="-2.5" step="0.1">
+                                                </div>
+                                            </div>
+                                            <div class="col-6">
+                                                <div class="input-group input-group-sm">
+                                                    <span class="input-group-text">X Max</span>
+                                                    <input type="number" id="x-max" class="form-control" value="1.5" step="0.1">
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="row g-2">
+                                            <div class="col-6">
+                                                <div class="input-group input-group-sm">
+                                                    <span class="input-group-text">Y Min</span>
+                                                    <input type="number" id="y-min" class="form-control" value="-1.5" step="0.1">
+                                                </div>
+                                            </div>
+                                            <div class="col-6">
+                                                <div class="input-group input-group-sm">
+                                                    <span class="input-group-text">Y Max</span>
+                                                    <input type="number" id="y-max" class="form-control" value="1.5" step="0.1">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <div class="card shadow mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="card-title mb-0">About Fractals</h5>
+            </div>
+            <div class="card-body">
+                <p>Fractals are infinitely complex patterns that are self-similar across different scales. They are created by repeating a simple process over and over in an ongoing feedback loop.</p>
+                <p><strong>Mandelbrot Set:</strong> The most famous fractal, named after mathematician Benoit Mandelbrot. It's defined by the equation z = z² + c.</p>
+                <p><strong>Julia Set:</strong> Related to the Mandelbrot set, but uses a fixed complex parameter c for all points.</p>
+                <p><strong>Burning Ship:</strong> A variation that uses the absolute values of the real and imaginary parts, creating a shape resembling a burning ship.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Save Fractal Modal -->
+<div class="modal fade" id="saveModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Save Your Fractal</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="save-form">
+                    <div class="mb-3">
+                        <label for="fractal-title" class="form-label">Title</label>
+                        <input type="text" class="form-control" id="fractal-title" required>
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="public-fractal" checked>
+                        <label class="form-check-label" for="public-fractal">Share publicly in gallery</label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="btn-save-confirm">Save Fractal</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Load noUiSlider without integrity check to avoid SRI blocking -->
+<script src="https://unpkg.com/nouislider@15.5.0/dist/nouislider.min.js" crossorigin="anonymous"></script>
+<script>
+    // Global variables
+    let currentFractalData = null;
+    let saveModal = null;
+    let maxIterSlider = null;
+    
+    // Fractal parameter defaults
+    const defaultParams = {
+        mandelbrot: {
+            x_min: -2.5,
+            x_max: 1.5,
+            y_min: -1.5,
+            y_max: 1.5
+        },
+        julia: {
+            x_min: -2.0,
+            x_max: 2.0,
+            y_min: -2.0,
+            y_max: 2.0,
+            c_real: -0.7,
+            c_imag: 0.27015
+        },
+        burning_ship: {
+            x_min: -2.0,
+            x_max: 1.0,
+            y_min: -2.0,
+            y_max: 1.0
+        }
+    };
+    
+    // Initialize the page
+    document.addEventListener('DOMContentLoaded', function() {
+        // Set initial lower resolution for first load
+        document.getElementById('width').value = 300;
+        document.getElementById('height').value = 250;
+        document.getElementById('max-iterations').value = 50;
+        
+        // Initialize sliders
+        initializeSlider();
+        
+        // Fractal type change handler
+        document.getElementById('fractal-type').addEventListener('change', function() {
+            // Show/hide Julia-specific parameters
+            const juliaParams = document.getElementById('julia-params');
+            if (this.value === 'julia') {
+                juliaParams.classList.remove('d-none');
+            } else {
+                juliaParams.classList.add('d-none');
+            }
+            
+            // Set default parameters for the selected fractal type
+            const type = this.value;
+            if (defaultParams[type]) {
+                document.getElementById('x-min').value = defaultParams[type].x_min;
+                document.getElementById('x-max').value = defaultParams[type].x_max;
+                document.getElementById('y-min').value = defaultParams[type].y_min;
+                document.getElementById('y-max').value = defaultParams[type].y_max;
+                
+                if (type === 'julia') {
+                    document.getElementById('c-real').value = defaultParams[type].c_real;
+                    document.getElementById('c-imag').value = defaultParams[type].c_imag;
+                }
+            }
+        });
+        
+        // Generate button click handler
+        document.getElementById('btn-generate').addEventListener('click', generateFractal);
+        
+        // Initialize save modal
+        saveModal = new bootstrap.Modal(document.getElementById('saveModal'));
+        
+        // Save button click handler
+        document.getElementById('btn-save').addEventListener('click', function() {
+            if (!currentFractalData) {
+                alert('Please generate a fractal first');
+                return;
+            }
+            
+            // Set default title based on fractal type
+            const fractalType = document.getElementById('fractal-type').value;
+            const title = fractalType.charAt(0).toUpperCase() + fractalType.slice(1) + ' ' + 
+                new Date().toISOString().slice(0, 10);
+            document.getElementById('fractal-title').value = title;
+            
+            saveModal.show();
+        });
+        
+        // Save confirmation handler
+        document.getElementById('btn-save-confirm').addEventListener('click', saveFractal);
+        
+        // Download button handler
+        document.getElementById('btn-download').addEventListener('click', downloadFractal);
+        
+        // Zoom and navigation controls
+        document.getElementById('btn-zoom-in').addEventListener('click', zoomIn);
+        document.getElementById('btn-zoom-out').addEventListener('click', zoomOut);
+        document.getElementById('btn-reset').addEventListener('click', resetView);
+        
+        // Pan controls
+        document.getElementById('btn-pan-left').addEventListener('click', panLeft);
+        document.getElementById('btn-pan-right').addEventListener('click', panRight);
+        document.getElementById('btn-pan-up').addEventListener('click', panUp);
+        document.getElementById('btn-pan-down').addEventListener('click', panDown);
+        
+        // Show ready message instead of auto-generating
+        console.log('Fractal generator ready - click Generate to create a fractal');
+    });
+    
+    // Initialize the noUiSlider
+    function initializeSlider() {
+        const sliderElement = document.getElementById('max-iterations-slider');
+        const maxIterInput = document.getElementById('max-iterations');
+        
+        try {
+            // Check if noUiSlider is available
+            if (typeof noUiSlider === 'undefined') {
+                throw new Error('noUiSlider library not loaded');
+            }
+            
+            // Create the slider
+            noUiSlider.create(sliderElement, {
+                start: [parseInt(maxIterInput.value) || 75],
+                connect: true,
+                range: {
+                    'min': 10,
+                    'max': 1000
+                },
+                step: 10,
+                format: {
+                    to: function(value) {
+                        return Math.round(value);
+                    },
+                    from: function(value) {
+                        return Number(value);
+                    }
+                }
+            });
+            
+            // Store slider reference
+            maxIterSlider = sliderElement.noUiSlider;
+            
+            // Connect slider to input
+            maxIterSlider.on('update', function(values, handle) {
+                maxIterInput.value = values[handle];
+            });
+            
+            maxIterInput.addEventListener('change', function() {
+                maxIterSlider.set(this.value);
+            });
+            
+            console.log('noUiSlider initialized successfully');
+        } catch (error) {
+            console.error('Failed to initialize noUiSlider:', error);
+            
+            // Hide the slider element and make sure the input is visible
+            sliderElement.style.display = 'none';
+            maxIterInput.classList.remove('mt-2');
+            
+            // Add manual event listener for the input
+            maxIterInput.addEventListener('input', function() {
+                // Ensure value is within range
+                const value = parseInt(this.value) || 0;
+                this.value = Math.max(10, Math.min(1000, value));
+            });
+        }
+    }
+    
+    // Get all fractal parameters from the form
+    function getFractalParameters() {
+        const type = document.getElementById('fractal-type').value;
+        const params = {
+            type: type,
+            width: parseInt(document.getElementById('width').value) || 500,
+            height: parseInt(document.getElementById('height').value) || 400,
+            max_iter: parseInt(document.getElementById('max-iterations').value) || 75,
+            color_scheme: document.getElementById('color-scheme').value,
+            x_min: parseFloat(document.getElementById('x-min').value),
+            x_max: parseFloat(document.getElementById('x-max').value),
+            y_min: parseFloat(document.getElementById('y-min').value),
+            y_max: parseFloat(document.getElementById('y-max').value)
+        };
+        
+        // Add Julia set specific parameters if needed
+        if (type === 'julia') {
+            params.c_real = parseFloat(document.getElementById('c-real').value) || -0.7;
+            params.c_imag = parseFloat(document.getElementById('c-imag').value) || 0.27015;
+        }
+        
+        return params;
+    }
+    
+    // Generate fractal
+    function generateFractal() {
+        const params = getFractalParameters();
+        
+        const fractalImage = document.getElementById('fractal-image');
+        const generateBtn = document.getElementById('btn-generate');
+        
+        // Disable the generate button while processing
+        if (generateBtn) {
+            generateBtn.disabled = true;
+            generateBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Generating...';
+        }
+        
+        // Create an AbortController for timeout handling
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => {
+            controller.abort();
+            // No need to hide loading indicator
+            console.warn('Fractal generation timed out after 30 seconds');
+            alert('Fractal generation timed out after 30 seconds. Try reducing the resolution or maximum iterations.');
+            resetGenerateButton();
+        }, 30000); // 30 second timeout
+        
+        // Handle the case where the page is unloaded during generation
+        window.addEventListener('beforeunload', function() {
+            controller.abort();
+            clearTimeout(timeoutId);
+        }, { once: true });
+        
+        console.log('Sending fractal parameters to server:', params);
+        
+        // Send parameters to server
+        fetch('/generate', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(params),
+            signal: controller.signal
+        })
+        .then(response => {
+            // Always clear the timeout when we get any response
+            clearTimeout(timeoutId);
+            console.log('Server response received, status:', response.status);
+            
+            if (!response.ok) {
+                throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Response data received:', data ? 'success' : 'empty data');
+            
+            // No need to hide loading indicator
+            
+            // Check if there was an error
+            if (data.error) {
+                throw new Error(data.message || data.error);
+            }
+            
+            // Display the generated fractal
+            if (fractalImage && data.image) {
+                fractalImage.src = data.image;
+                console.log('Fractal image received and displayed');
+            } else {
+                console.error('Failed to update fractal image');
+            }
+            
+            // Store the fractal data for later use
+            currentFractalData = data;
+            
+            // If this was a fallback image, show a warning
+            if (data.fallback) {
+                console.warn('Using fallback image due to generation failure');
+                alert('The complex fractal could not be generated. A fallback image is shown instead. Try simpler parameters.');
+            }
+            
+            // Reset generate button
+            resetGenerateButton();
+        })
+        .catch(error => {
+            // Clear timeout if not already cleared
+            clearTimeout(timeoutId);
+            
+            // No need to hide loading indicator
+            
+            console.error('Error generating fractal:', error);
+            
+            // Show error message to user
+            alert('Error generating fractal: ' + error.message + 
+                  '\nTry reducing the resolution or number of iterations.');
+            
+            // Reset generate button
+            resetGenerateButton();
+            
+            // Reset to a simpler fractal configuration
+            document.getElementById('width').value = 300;
+            document.getElementById('height').value = 250;
+            document.getElementById('max-iterations').value = 50;
+            if (maxIterSlider) {
+                maxIterSlider.set(50);
+            }
+        });
+    }
+    
+    function resetGenerateButton() {
+        const generateBtn = document.getElementById('btn-generate');
+        if (generateBtn) {
+            generateBtn.disabled = false;
+            generateBtn.innerHTML = '<i class="bi bi-brush me-1"></i> Generate';
+        }
+    }
+    
+    // Save fractal
+    function saveFractal() {
+        if (!currentFractalData) {
+            alert('Please generate a fractal first');
+            return;
+        }
+        
+        const title = document.getElementById('fractal-title').value;
+        const isPublic = document.getElementById('public-fractal').checked;
+        
+        // Prepare data for saving
+        const saveData = {
+            title: title,
+            type: document.getElementById('fractal-type').value,
+            parameters: getFractalParameters(),
+            image: currentFractalData.image,
+            public: isPublic
+        };
+        
+        // Send to server
+        fetch('/save', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(saveData)
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                saveModal.hide();
+                alert('Fractal saved successfully!');
+            } else {
+                throw new Error(data.message || 'Error saving fractal');
+            }
+        })
+        .catch(error => {
+            console.error('Error saving fractal:', error);
+            alert('Error saving fractal: ' + error.message);
+        });
+    }
+    
+    // Download fractal
+    function downloadFractal() {
+        if (!currentFractalData) {
+            alert('Please generate a fractal first');
+            return;
+        }
+        
+        try {
+            // Create a temporary link for downloading
+            const link = document.createElement('a');
+            link.href = currentFractalData.image;
+            const fractalType = document.getElementById('fractal-type').value;
+            link.download = `fractal_${fractalType}_${Date.now()}.png`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        } catch (error) {
+            console.error('Error downloading fractal:', error);
+            alert('Error downloading fractal: ' + error.message);
+        }
+    }
+    
+    // Zoom in
+    function zoomIn() {
+        try {
+            const xMin = parseFloat(document.getElementById('x-min').value);
+            const xMax = parseFloat(document.getElementById('x-max').value);
+            const yMin = parseFloat(document.getElementById('y-min').value);
+            const yMax = parseFloat(document.getElementById('y-max').value);
+            
+            // Calculate new boundaries (zoom in by 30%)
+            const xRange = xMax - xMin;
+            const yRange = yMax - yMin;
+            const newXMin = xMin + xRange * 0.15;
+            const newXMax = xMax - xRange * 0.15;
+            const newYMin = yMin + yRange * 0.15;
+            const newYMax = yMax - yRange * 0.15;
+            
+            // Update the form values
+            document.getElementById('x-min').value = newXMin.toFixed(5);
+            document.getElementById('x-max').value = newXMax.toFixed(5);
+            document.getElementById('y-min').value = newYMin.toFixed(5);
+            document.getElementById('y-max').value = newYMax.toFixed(5);
+            
+            // Generate new fractal
+            generateFractal();
+        } catch (error) {
+            console.error('Error during zoom in:', error);
+            alert('Error during zoom in: ' + error.message);
+        }
+    }
+    
+    // Zoom out
+    function zoomOut() {
+        try {
+            const xMin = parseFloat(document.getElementById('x-min').value);
+            const xMax = parseFloat(document.getElementById('x-max').value);
+            const yMin = parseFloat(document.getElementById('y-min').value);
+            const yMax = parseFloat(document.getElementById('y-max').value);
+            
+            // Calculate new boundaries (zoom out by 30%)
+            const xRange = xMax - xMin;
+            const yRange = yMax - yMin;
+            const newXMin = xMin - xRange * 0.15;
+            const newXMax = xMax + xRange * 0.15;
+            const newYMin = yMin - yRange * 0.15;
+            const newYMax = yMax + yRange * 0.15;
+            
+            // Update the form values
+            document.getElementById('x-min').value = newXMin.toFixed(5);
+            document.getElementById('x-max').value = newXMax.toFixed(5);
+            document.getElementById('y-min').value = newYMin.toFixed(5);
+            document.getElementById('y-max').value = newYMax.toFixed(5);
+            
+            // Generate new fractal
+            generateFractal();
+        } catch (error) {
+            console.error('Error during zoom out:', error);
+            alert('Error during zoom out: ' + error.message);
+        }
+    }
+    
+    // Reset view
+    function resetView() {
+        try {
+            const fractalType = document.getElementById('fractal-type').value;
+            
+            // Reset to default parameters
+            if (defaultParams[fractalType]) {
+                document.getElementById('x-min').value = defaultParams[fractalType].x_min;
+                document.getElementById('x-max').value = defaultParams[fractalType].x_max;
+                document.getElementById('y-min').value = defaultParams[fractalType].y_min;
+                document.getElementById('y-max').value = defaultParams[fractalType].y_max;
+                
+                if (fractalType === 'julia') {
+                    document.getElementById('c-real').value = defaultParams[fractalType].c_real;
+                    document.getElementById('c-imag').value = defaultParams[fractalType].c_imag;
+                }
+            }
+            
+            // Generate new fractal
+            generateFractal();
+        } catch (error) {
+            console.error('Error resetting view:', error);
+            alert('Error resetting view: ' + error.message);
+        }
+    }
+    
+    // Pan left
+    function panLeft() {
+        try {
+            const xMin = parseFloat(document.getElementById('x-min').value);
+            const xMax = parseFloat(document.getElementById('x-max').value);
+            const yMin = parseFloat(document.getElementById('y-min').value);
+            const yMax = parseFloat(document.getElementById('y-max').value);
+            
+            // Calculate how much to shift (20% of current width)
+            const xShift = (xMax - xMin) * 0.2;
+            
+            // Update coordinates to shift left
+            const newXMin = xMin - xShift;
+            const newXMax = xMax - xShift;
+            
+            // Update the form values
+            document.getElementById('x-min').value = newXMin.toFixed(5);
+            document.getElementById('x-max').value = newXMax.toFixed(5);
+            
+            // Generate new fractal
+            generateFractal();
+        } catch (error) {
+            console.error('Error panning left:', error);
+            alert('Error panning left: ' + error.message);
+        }
+    }
+    
+    // Pan right
+    function panRight() {
+        try {
+            const xMin = parseFloat(document.getElementById('x-min').value);
+            const xMax = parseFloat(document.getElementById('x-max').value);
+            const yMin = parseFloat(document.getElementById('y-min').value);
+            const yMax = parseFloat(document.getElementById('y-max').value);
+            
+            // Calculate how much to shift (20% of current width)
+            const xShift = (xMax - xMin) * 0.2;
+            
+            // Update coordinates to shift right
+            const newXMin = xMin + xShift;
+            const newXMax = xMax + xShift;
+            
+            // Update the form values
+            document.getElementById('x-min').value = newXMin.toFixed(5);
+            document.getElementById('x-max').value = newXMax.toFixed(5);
+            
+            // Generate new fractal
+            generateFractal();
+        } catch (error) {
+            console.error('Error panning right:', error);
+            alert('Error panning right: ' + error.message);
+        }
+    }
+    
+    // Pan up
+    function panUp() {
+        try {
+            const xMin = parseFloat(document.getElementById('x-min').value);
+            const xMax = parseFloat(document.getElementById('x-max').value);
+            const yMin = parseFloat(document.getElementById('y-min').value);
+            const yMax = parseFloat(document.getElementById('y-max').value);
+            
+            // Calculate how much to shift (20% of current height)
+            const yShift = (yMax - yMin) * 0.2;
+            
+            // Update coordinates to shift up
+            const newYMin = yMin + yShift;
+            const newYMax = yMax + yShift;
+            
+            // Update the form values
+            document.getElementById('y-min').value = newYMin.toFixed(5);
+            document.getElementById('y-max').value = newYMax.toFixed(5);
+            
+            // Generate new fractal
+            generateFractal();
+        } catch (error) {
+            console.error('Error panning up:', error);
+            alert('Error panning up: ' + error.message);
+        }
+    }
+    
+    // Pan down
+    function panDown() {
+        try {
+            const xMin = parseFloat(document.getElementById('x-min').value);
+            const xMax = parseFloat(document.getElementById('x-max').value);
+            const yMin = parseFloat(document.getElementById('y-min').value);
+            const yMax = parseFloat(document.getElementById('y-max').value);
+            
+            // Calculate how much to shift (20% of current height)
+            const yShift = (yMax - yMin) * 0.2;
+            
+            // Update coordinates to shift down
+            const newYMin = yMin - yShift;
+            const newYMax = yMax - yShift;
+            
+            // Update the form values
+            document.getElementById('y-min').value = newYMin.toFixed(5);
+            document.getElementById('y-max').value = newYMax.toFixed(5);
+            
+            // Generate new fractal
+            generateFractal();
+        } catch (error) {
+            console.error('Error panning down:', error);
+            alert('Error panning down: ' + error.message);
+        }
+    }
+</script>
+{% endblock %} 
