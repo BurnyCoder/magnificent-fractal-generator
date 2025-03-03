@@ -448,6 +448,129 @@ class Newton(FractalGenerator):
         return result.T
 
 
+class SierpinskiCarpet(FractalGenerator):
+    """Sierpinski Carpet fractal generator."""
+    
+    def __init__(self, width, height, x_min, x_max, y_min, y_max, max_iter, color_scheme, level=5):
+        super().__init__(width, height, x_min, x_max, y_min, y_max, max_iter, color_scheme)
+        self.level = min(int(level), 8)  # Limit maximum level to avoid excessive computation
+        
+    def calculate(self):
+        """Calculate the Sierpinski Carpet fractal."""
+        # Create a grid of points
+        x = np.linspace(self.x_min, self.x_max, self.width)
+        y = np.linspace(self.y_min, self.y_max, self.height)
+        
+        # Create the result array
+        result = np.zeros((self.width, self.height), dtype=np.float32)
+        
+        # Normalize coordinates to [0, 1] range for easier computation
+        x_norm = (x - self.x_min) / (self.x_max - self.x_min)
+        y_norm = (y - self.y_min) / (self.y_max - self.y_min)
+        
+        # Check each point if it belongs to the carpet
+        for i in range(self.width):
+            # Check for timeout on regular intervals
+            if i % self.check_frequency == 0:
+                self.check_timeout()
+                
+            x_val = x_norm[i]
+            for j in range(self.height):
+                y_val = y_norm[j]
+                
+                # For each level, check if point is in the middle third
+                belongs_to_carpet = True
+                for level in range(1, self.level + 1):
+                    divisor = 3 ** level
+                    x_third = (x_val * divisor) % 3
+                    y_third = (y_val * divisor) % 3
+                    
+                    # If both x and y are in the middle third (1.0-2.0), it's a hole
+                    if 1.0 <= x_third < 2.0 and 1.0 <= y_third < 2.0:
+                        belongs_to_carpet = False
+                        # Store the level at which the point was removed
+                        result[i, j] = level / self.level
+                        break
+                
+                # If it belongs to the carpet after all levels, mark it
+                if belongs_to_carpet:
+                    result[i, j] = 1.0
+        
+        # Transpose to match the image coordinates
+        return result.T
+
+
+class LyapunovFractal(FractalGenerator):
+    """Lyapunov fractal generator based on logistic map sequences."""
+    
+    def __init__(self, width, height, x_min, x_max, y_min, y_max, max_iter, color_scheme, sequence="AB"):
+        super().__init__(width, height, x_min, x_max, y_min, y_max, max_iter, color_scheme)
+        self.sequence = sequence if sequence else "AB"  # Default sequence is "AB"
+        
+    def calculate(self):
+        """Calculate the Lyapunov fractal based on the sequence."""
+        # Create a grid of points
+        result = np.zeros((self.width, self.height), dtype=np.float32)
+        
+        # Expand sequence if it's too short
+        seq = self.sequence
+        if len(seq) < 2:
+            seq = seq * 2
+        
+        seq_length = len(seq)
+        
+        # Iterate over the grid
+        for i in range(self.width):
+            # Check for timeout on regular intervals
+            if i % self.check_frequency == 0:
+                self.check_timeout()
+                
+            r_a = self.x_min + (self.x_max - self.x_min) * i / self.width
+            
+            for j in range(self.height):
+                r_b = self.y_min + (self.y_max - self.y_min) * j / self.height
+                
+                # Skip invalid parameter ranges for the logistic map
+                if r_a < 0 or r_a > 4 or r_b < 0 or r_b > 4:
+                    result[i, j] = float('nan')
+                    continue
+                
+                # Initial value for the logistic map
+                x = 0.5
+                
+                # Calculate Lyapunov exponent
+                lyapunov = 0.0
+                
+                # Discard transient iterations
+                for _ in range(min(100, self.max_iter // 2)):
+                    r = r_a if seq[_ % seq_length] == 'A' else r_b
+                    x = r * x * (1 - x)
+                
+                # Calculate the Lyapunov exponent
+                for n in range(self.max_iter):
+                    r = r_a if seq[n % seq_length] == 'A' else r_b
+                    derivative = r * (1 - 2 * x)
+                    x = r * x * (1 - x)
+                    
+                    # Avoid log(0)
+                    if derivative != 0:
+                        lyapunov += np.log(abs(derivative))
+                
+                # Normalize the Lyapunov exponent
+                lyapunov /= self.max_iter
+                
+                # Store the result - normalize for visualization
+                if lyapunov <= 0:
+                    # Stable (negative Lyapunov exponent)
+                    result[i, j] = -lyapunov / 10  # Map negative values to 0-0.1 range
+                else:
+                    # Chaotic (positive Lyapunov exponent)
+                    result[i, j] = 0.5 + lyapunov / 5  # Map positive values to 0.5-0.7 range
+        
+        # Transpose to match the image coordinates
+        return result.T
+
+
 def generate_fractal_image(fractal_type, width, height, x_min, x_max, y_min, y_max, 
                           max_iter, color_scheme, c_real=None, c_imag=None):
     """
@@ -489,6 +612,14 @@ def generate_fractal_image(fractal_type, width, height, x_min, x_max, y_min, y_m
         p_real = c_real if c_real is not None else -0.5
         p_imag = c_imag if c_imag is not None else 0.0
         generator = Phoenix(width, height, x_min, x_max, y_min, y_max, max_iter, color_scheme, p_real, p_imag)
+    elif fractal_type == 'sierpinski_carpet':
+        # Default level for Sierpinski Carpet
+        level = int(c_real) if c_real is not None else 5
+        generator = SierpinskiCarpet(width, height, x_min, x_max, y_min, y_max, max_iter, color_scheme, level=level)
+    elif fractal_type == 'lyapunov':
+        # Default sequence for Lyapunov fractal
+        sequence = c_real if isinstance(c_real, str) else "AB"
+        generator = LyapunovFractal(width, height, x_min, x_max, y_min, y_max, max_iter, color_scheme, sequence=sequence)
     else:
         raise ValueError(f"Unsupported fractal type: {fractal_type}")
     

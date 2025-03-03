@@ -83,8 +83,34 @@ def generate():
         y_max = float(data.get('y_max', 1.5))
         color_scheme = data.get('color_scheme', 'viridis')
         
-        c_real = float(data.get('c_real', -0.7))
-        c_imag = float(data.get('c_imag', 0.27015))
+        # Handle parameters differently based on fractal type
+        try:
+            if fractal_type == 'lyapunov':
+                # For Lyapunov fractal, keep c_real as a string (sequence)
+                c_real = data.get('c_real', 'AB')
+                c_imag = float(data.get('c_imag', 0.27015))
+            elif fractal_type == 'sierpinski_carpet':
+                # For Sierpinski Carpet, convert to integer (recursion level)
+                c_real = int(data.get('c_real', 5))
+                c_imag = float(data.get('c_imag', 0.27015))
+            elif fractal_type == 'multibrot':
+                # For Multibrot, c_real is the power parameter
+                c_real = float(data.get('c_real', 3.0))
+                c_imag = float(data.get('c_imag', 0.27015))
+            elif fractal_type == 'phoenix':
+                # For Phoenix, c_real and c_imag are p_real and p_imag
+                c_real = float(data.get('c_real', -0.5))
+                c_imag = float(data.get('c_imag', 0.0))
+            else:
+                # For other fractals (Mandelbrot, Julia, etc.), handle normally
+                c_real = float(data.get('c_real', -0.7))
+                c_imag = float(data.get('c_imag', 0.27015))
+        except (ValueError, TypeError) as e:
+            app.logger.error(f"Parameter conversion error: {str(e)}")
+            return jsonify({
+                'error': f"Invalid parameter format: {str(e)}",
+                'message': 'Please check your parameter values and try again.'
+            }), 400
         
         # Calculate complexity score to predict if this will be a slow generation
         pixel_count = width * height

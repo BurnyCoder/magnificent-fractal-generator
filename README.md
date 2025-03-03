@@ -5,7 +5,7 @@ A beautiful interactive fractal art generator with a clean, modern web interface
 ## Features
 
 - Interactive fractal generator with real-time updates
-- Multiple fractal types (Mandelbrot, Julia sets, Burning Ship, Tricorn, Newton, Multibrot, Phoenix)
+- Multiple fractal types (Mandelbrot, Julia sets, Burning Ship, Tricorn, Newton, Multibrot, Phoenix, Sierpinski Carpet, Lyapunov)
 - Customizable color palettes and parameters
 - Ability to zoom, pan, and explore fractals in high detail
 - Save and share your creations
@@ -33,13 +33,13 @@ A beautiful interactive fractal art generator with a clean, modern web interface
 
 ### Creating Fractals
 
-1. Select a fractal type (Mandelbrot, Julia, Burning Ship, Tricorn, Newton, Multibrot, or Phoenix)
+1. Select a fractal type (Mandelbrot, Julia, Burning Ship, Tricorn, Newton, Multibrot, Phoenix, Sierpinski Carpet, or Lyapunov)
 2. Adjust parameters as desired:
    - Color scheme
    - Maximum iterations
    - Resolution
    - Complex plane coordinates
-   - Type-specific parameters (power, complex parameters, etc.)
+   - Type-specific parameters (power, complex parameters, recursion level, sequence, etc.)
 3. Click "Generate" to create your fractal
 4. Use the zoom and pan controls to explore interesting areas
 
@@ -70,6 +70,8 @@ Fractals are created through iterative equations applied to each point in the co
 - **Newton Fractal**: z → z - f(z)/f'(z), using Newton's method to find roots of f(z)
 - **Multibrot Set**: z → z^n + c, where n > 2 is the power parameter (generalizes the Mandelbrot)
 - **Phoenix Fractal**: z_{n+1} → z_n² + c + p*z_{n-1}, where p is a complex parameter
+- **Sierpinski Carpet**: A recursive fractal created by repeatedly removing the middle ninth of squares
+- **Lyapunov Fractal**: Visualizes the stability (Lyapunov exponent) of the logistic map x_{n+1} = r*x_n*(1-x_n) under different parameter sequences
 
 ## License
 
