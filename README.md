@@ -13,6 +13,21 @@ A beautiful interactive fractal art generator with a clean, modern web interface
 - Save and share your creations
 - Responsive design that works on desktop and mobile
 
+### Mathematical Background
+
+Fractals are created through iterative equations applied to each point in the complex plane:
+
+- **Mandelbrot Set**: z → z² + c, where c is the point's coordinates
+- **Julia Set**: z → z² + c, where c is a fixed complex parameter
+- **Burning Ship**: z → (|Re(z)| + i|Im(z)|)² + c
+- **Tricorn (Mandelbar)**: z → z̅² + c, where z̅ is the complex conjugate
+- **Newton Fractal**: z → z - f(z)/f'(z), using Newton's method to find roots of f(z)
+- **Multibrot Set**: z → z^n + c, where n > 2 is the power parameter (generalizes the Mandelbrot)
+- **Phoenix Fractal**: z_{n+1} → z_n² + c + p*z_{n-1}, where p is a complex parameter
+- **Sierpinski Carpet**: A recursive fractal created by repeatedly removing the middle ninth of squares
+- **Lyapunov Fractal**: Visualizes the stability (Lyapunov exponent) of the logistic map x_{n+1} = r*x_n*(1-x_n) under different parameter sequences
+- **Buddhabrot**: A special rendering technique that plots the trajectories of points that escape the Mandelbrot set rather than the points themselves, creating an image that resembles a meditating Buddha
+
 ## Installation
 
 1. Clone this repository
@@ -60,21 +75,6 @@ The Julia Set requires a complex parameter c. Try these interesting values:
 - c = -0.8 + 0.156i
 - c = -0.4 + 0.6i
 - c = 0.285 + 0.01i
-
-### Mathematical Background
-
-Fractals are created through iterative equations applied to each point in the complex plane:
-
-- **Mandelbrot Set**: z → z² + c, where c is the point's coordinates
-- **Julia Set**: z → z² + c, where c is a fixed complex parameter
-- **Burning Ship**: z → (|Re(z)| + i|Im(z)|)² + c
-- **Tricorn (Mandelbar)**: z → z̅² + c, where z̅ is the complex conjugate
-- **Newton Fractal**: z → z - f(z)/f'(z), using Newton's method to find roots of f(z)
-- **Multibrot Set**: z → z^n + c, where n > 2 is the power parameter (generalizes the Mandelbrot)
-- **Phoenix Fractal**: z_{n+1} → z_n² + c + p*z_{n-1}, where p is a complex parameter
-- **Sierpinski Carpet**: A recursive fractal created by repeatedly removing the middle ninth of squares
-- **Lyapunov Fractal**: Visualizes the stability (Lyapunov exponent) of the logistic map x_{n+1} = r*x_n*(1-x_n) under different parameter sequences
-- **Buddhabrot**: A special rendering technique that plots the trajectories of points that escape the Mandelbrot set rather than the points themselves, creating an image that resembles a meditating Buddha
 
 ## License
 
